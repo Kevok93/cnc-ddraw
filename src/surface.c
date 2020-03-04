@@ -77,8 +77,16 @@ ULONG __stdcall ddraw_surface_Release(IDirectDrawSurfaceImpl *This)
         else if (This->surface)
             HeapFree(GetProcessHeap(), 0, This->surface);
 
+        if (This->overlayBitmap)
+            DeleteObject(This->overlayBitmap);
+        else if (This->overlaySurface)
+            HeapFree(GetProcessHeap(), 0, This->overlaySurface);
+
         if (This->hDC)
             DeleteDC(This->hDC);
+
+        if (This->hoverlayDC)
+            DeleteDC(This->hoverlayDC);
 
         if (This->bmi)
             HeapFree(GetProcessHeap(), 0, This->bmi);
@@ -981,17 +989,16 @@ HRESULT __stdcall ddraw_surface_SetPalette(IDirectDrawSurfaceImpl *This, LPDIREC
     return DD_OK;
 }
 
-HRESULT __stdcall ddraw_surface_Unlock(IDirectDrawSurfaceImpl *This, LPVOID lpRect)
+void RedrawOverlay()
 {
-#if _DEBUG_X
-    printf("DirectDrawSurface::Unlock(This=%p, lpRect=%p)\n", This, lpRect);
-#endif
-    
-    HWND hWnd = ddraw->bnetActive ? FindWindowEx(HWND_DESKTOP, NULL, "SDlgDialog", NULL) : NULL;
-    if (hWnd && (This->caps & DDSCAPS_PRIMARYSURFACE))
+    HWND hWnd = ddraw->overlayActive ? FindWindowEx(HWND_DESKTOP, NULL, "SDlgDialog", NULL) : NULL;
+    if (hWnd)
     {
         if (ddraw->primary->palette && ddraw->primary->palette->data_rgb)
+        {
             SetDIBColorTable(ddraw->primary->hDC, 0, 256, ddraw->primary->palette->data_rgb);
+            SetDIBColorTable(ddraw->primary->hoverlayDC, 0, 256, ddraw->primary->palette->data_rgb);
+        }
 
         //GdiTransparentBlt idea taken from Aqrit's war2 ddraw
 
@@ -999,12 +1006,18 @@ HRESULT __stdcall ddraw_surface_Unlock(IDirectDrawSurfaceImpl *This, LPVOID lpRe
         GetDIBColorTable(ddraw->primary->hDC, 0xFE, 1, &quad);
         COLORREF color = RGB(quad.rgbRed, quad.rgbGreen, quad.rgbBlue);
         BOOL erase = FALSE;
+        HWND hWndOverlay[20];
+        int i = 0;
+
+        memset(&hWndOverlay[0], 0, sizeof(hWndOverlay));
 
         do
         {
             RECT rc;
             if (fake_GetWindowRect(hWnd, &rc))
             {
+                hWndOverlay[i++] = hWnd;
+
                 if (rc.bottom - rc.top == 479)
                     erase = TRUE;
 
@@ -1029,15 +1042,58 @@ HRESULT __stdcall ddraw_surface_Unlock(IDirectDrawSurfaceImpl *This, LPVOID lpRe
 
         } while ((hWnd = FindWindowEx(HWND_DESKTOP, hWnd, "SDlgDialog", NULL)));
 
+        //hack for windows 8/10 fullscreen exclusive mode
+        EnterCriticalSection(&ddraw->cs);
+
+        for (i = sizeof(hWndOverlay) / sizeof(hWndOverlay[0]); i--; )
+        {
+            if (hWndOverlay[i])
+            {
+                RECT rc;
+                if (fake_GetWindowRect(hWndOverlay[i], &rc))
+                {
+                    HDC hDC = GetDC(hWndOverlay[i]);
+
+                    BitBlt(
+                        ddraw->primary->hoverlayDC,
+                        rc.left,
+                        rc.top,
+                        rc.right - rc.left,
+                        rc.bottom - rc.top,
+                        hDC,
+                        0,
+                        0,
+                        SRCCOPY);
+
+                    ReleaseDC(hWndOverlay[i], hDC);
+                }
+            }
+        }
+
+        LeaveCriticalSection(&ddraw->cs);
+
         if (erase)
         {
-            BOOL x = ddraw->ticksLimiter.useBltOrFlip;
-
-            DDBLTFX fx = { .dwFillColor = 0xFE };
-            IDirectDrawSurface_Blt(This, NULL, NULL, NULL, DDBLT_COLORFILL, &fx);
-
-            ddraw->ticksLimiter.useBltOrFlip = x;
+            memset(
+                ddraw->primary->surface, 
+                0xFE, 
+                ddraw->primary->lPitch * ddraw->primary->height * ddraw->primary->lXPitch);
         }
+
+        if (ddraw->render.run)
+            ReleaseSemaphore(ddraw->render.sem, 1, NULL);
+    }
+}
+
+HRESULT __stdcall ddraw_surface_Unlock(IDirectDrawSurfaceImpl *This, LPVOID lpRect)
+{
+#if _DEBUG_X
+    printf("DirectDrawSurface::Unlock(This=%p, lpRect=%p)\n", This, lpRect);
+#endif
+    
+    if ((This->caps & DDSCAPS_PRIMARYSURFACE))
+    {
+        RedrawOverlay();
     }
 
     if (This->caps & DDSCAPS_PRIMARYSURFACE &&
@@ -1198,7 +1254,18 @@ HRESULT __stdcall ddraw_CreateSurface(IDirectDrawImpl *This, LPDDSURFACEDESC lpD
             Surface->surface = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, Surface->lPitch * (Surface->height + 200) * Surface->lXPitch);
 
         if (lpDDSurfaceDesc->ddsCaps.dwCaps & DDSCAPS_PRIMARYSURFACE)
+        {
             pvBmpBits = Surface->surface;
+
+            Surface->hoverlayDC = CreateCompatibleDC(ddraw->render.hDC);
+            Surface->overlayBitmap = CreateDIBSection(Surface->hoverlayDC, Surface->bmi, DIB_RGB_COLORS, (void**)&Surface->overlaySurface, NULL, 0);
+            Surface->bmi->bmiHeader.biHeight = -Surface->height;
+
+            if (!Surface->overlayBitmap)
+                Surface->overlaySurface = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, Surface->lPitch * (Surface->height + 200) * Surface->lXPitch);
+
+            SelectObject(Surface->hoverlayDC, Surface->overlayBitmap);
+        }
 
         SelectObject(Surface->hDC, Surface->bitmap);
     }

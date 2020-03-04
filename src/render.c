@@ -685,6 +685,28 @@ static void Render()
                     }
                 }
             }
+
+            if (ddraw->overlayActive)
+            {
+                glBindTexture(GL_TEXTURE_2D, SurfaceTexIds[texIndex]);
+
+                if (AdjustAlignment)
+                    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+
+                glTexSubImage2D(
+                    GL_TEXTURE_2D,
+                    0,
+                    0,
+                    0,
+                    ddraw->width,
+                    ddraw->height,
+                    SurfaceFormat,
+                    SurfaceType,
+                    ddraw->primary->overlaySurface);
+
+                if (AdjustAlignment)
+                    glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+            }
         }
 
         LeaveCriticalSection(&ddraw->cs);
@@ -790,9 +812,6 @@ static void Render()
             glTexCoord2f(0, ScaleH);        glVertex2f(-1, -1);
             glEnd();
         }
-
-        if (ddraw->bnetActive)
-            glClear(GL_COLOR_BUFFER_BIT);
 
         SwapBuffers(ddraw->render.hDC);
 

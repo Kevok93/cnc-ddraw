@@ -22,6 +22,7 @@
 #include "palette.h"
 
 HRESULT __stdcall ddraw_CreateSurface(IDirectDrawImpl *This, LPDDSURFACEDESC DDSurfaceDesc, LPDIRECTDRAWSURFACE FAR *DDSurface, IUnknown FAR * unkOuter);
+void RedrawOverlay();
 
 struct IDirectDrawSurfaceImpl;
 struct IDirectDrawSurfaceImplVtbl;
@@ -45,6 +46,10 @@ typedef struct IDirectDrawSurfaceImpl
     void *surface;
     DWORD lPitch;
     DWORD lXPitch;
+
+    void *overlaySurface;
+    HDC hoverlayDC;
+    HBITMAP overlayBitmap;
 
     PBITMAPINFO bmi;
     HBITMAP bitmap;

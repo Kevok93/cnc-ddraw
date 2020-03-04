@@ -226,12 +226,12 @@ void LimitGameTicks()
     }
 }
 
-void UpdateBnetPos(int newX, int newY)
+void UpdateOverlayPos(int newX, int newY)
 {
     static int oldX = -32000;
     static int oldY = -32000;
 
-    if (oldX == -32000 || oldY == -32000 || !ddraw->bnetActive)
+    if (oldX == -32000 || oldY == -32000 || !ddraw->overlayActive)
     {
         oldX = newX;
         oldY = newY;
@@ -959,7 +959,7 @@ HRESULT __stdcall ddraw_SetDisplayMode2(IDirectDrawImpl *This, DWORD width, DWOR
 
 void ToggleFullscreen()
 {
-    if (ddraw->bnetActive)
+    if (ddraw->overlayActive)
         return;
 
     if (ddraw->windowed)
@@ -969,7 +969,7 @@ void ToggleFullscreen()
         real_SetWindowLongA(ddraw->hWnd, GWL_STYLE, GetWindowLong(ddraw->hWnd, GWL_STYLE) & ~(WS_CAPTION | WS_THICKFRAME | WS_MINIMIZE | WS_MAXIMIZE | WS_SYSMENU));
         ddraw->altenter = TRUE;
         ddraw_SetDisplayMode(ddraw, ddraw->width, ddraw->height, ddraw->bpp);
-        UpdateBnetPos(0, 0);
+        UpdateOverlayPos(0, 0);
         mouse_lock();
     }
     else
@@ -980,7 +980,7 @@ void ToggleFullscreen()
         if (Direct3D9Active)
             Direct3D9_Reset();
         else
-            ChangeDisplaySettings(&ddraw->mode, ddraw->bnetActive ? CDS_FULLSCREEN : 0);
+            ChangeDisplaySettings(&ddraw->mode, ddraw->overlayActive ? CDS_FULLSCREEN : 0);
 
         ddraw_SetDisplayMode(ddraw, ddraw->width, ddraw->height, ddraw->bpp);
         mouse_lock();
@@ -1124,31 +1124,37 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         {
             switch (wParam)
             {
-                case IDT_TIMER_LEAVE_BNET:
+                case IDT_TIMER_LEAVE_OVERLAY:
                 {
-                    KillTimer(ddraw->hWnd, IDT_TIMER_LEAVE_BNET);
+                    KillTimer(ddraw->hWnd, IDT_TIMER_LEAVE_OVERLAY);
 
                     if (!ddraw->windowed)
-                        ddraw->bnetWasFullscreen = FALSE;
+                        ddraw->overlayWasFullscreen = FALSE;
 
-                    if (!ddraw->bnetActive)
+                    if (!ddraw->overlayActive)
                     {
-                        if (ddraw->bnetWasFullscreen)
+                        if (ddraw->overlayWasFullscreen)
                         {
                             int ws = WindowState;
                             ToggleFullscreen();
                             WindowState = ws;
-                            ddraw->bnetWasFullscreen = FALSE;
+                            ddraw->overlayWasFullscreen = FALSE;
                         }
-                        else if (ddraw->bnetWasUpscaled)
+                        else if (ddraw->overlayWasUpscaled)
                         {
                             SetWindowRect(0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
-                            ddraw->bnetWasUpscaled = FALSE;
+                            ddraw->overlayWasUpscaled = FALSE;
                         }
                     }
 
                     return 0;
                 }   
+                case IDT_TIMER_OVERLAY_REDRAW:
+                {
+                    RedrawOverlay();
+
+                    return 0;
+                }
             }
             break;
         }
@@ -1351,7 +1357,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
                 int y = (int)(short)HIWORD(lParam);
 
                 if (x != -32000 && y != -32000)
-                    UpdateBnetPos(x, y);
+                    UpdateOverlayPos(x, y);
 
                 if (inSizeMove || ddraw->wine)
                 {
@@ -1441,7 +1447,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
                     if (!Direct3D9Active)
                     {
                         ShowWindow(ddraw->hWnd, SW_MINIMIZE);
-                        ChangeDisplaySettings(&ddraw->mode, ddraw->bnetActive ? CDS_FULLSCREEN : 0);
+                        ChangeDisplaySettings(&ddraw->mode, ddraw->overlayActive ? CDS_FULLSCREEN : 0);
                     }
                 }
             }

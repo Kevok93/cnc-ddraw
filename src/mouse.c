@@ -143,7 +143,7 @@ void mouse_lock()
 {
     RECT rc;
 
-    if (ddraw->bnetActive)
+    if (ddraw->overlayActive)
         return;
 
     if (ddraw->devmode)
@@ -426,33 +426,34 @@ BOOL WINAPI fake_DestroyWindow(HWND hWnd)
 {
     BOOL result = real_DestroyWindow(hWnd);
 
-    if (ddraw && ddraw->hWnd != hWnd && ddraw->bnetActive)
+    if (ddraw && ddraw->hWnd != hWnd && ddraw->overlayActive)
     {
         RedrawWindow(NULL, NULL, NULL, RDW_ERASE | RDW_INVALIDATE | RDW_ALLCHILDREN);
 
         if (!FindWindowEx(HWND_DESKTOP, NULL, "SDlgDialog", NULL))
         {
-            ddraw->bnetActive = FALSE;
+            KillTimer(ddraw->hWnd, IDT_TIMER_OVERLAY_REDRAW);
+            ddraw->overlayActive = FALSE;
             SetFocus(ddraw->hWnd);
             mouse_lock();
 
             if (ddraw->windowed)
             {
-                ddraw->bnetPos.x = ddraw->bnetPos.y = 0;
-                real_ClientToScreen(ddraw->hWnd, &ddraw->bnetPos);
+                ddraw->overlayPos.x = ddraw->overlayPos.y = 0;
+                real_ClientToScreen(ddraw->hWnd, &ddraw->overlayPos);
 
-                if (!ddraw->bnetWasUpscaled)
+                if (!ddraw->overlayWasUpscaled)
                 {
-                    int width = ddraw->bnetWinRect.right - ddraw->bnetWinRect.left;
-                    int height = ddraw->bnetWinRect.bottom - ddraw->bnetWinRect.top;
+                    int width = ddraw->overlayWinRect.right - ddraw->overlayWinRect.left;
+                    int height = ddraw->overlayWinRect.bottom - ddraw->overlayWinRect.top;
                     UINT flags = width != ddraw->width || height != ddraw->height ? 0 : SWP_NOMOVE;
 
-                    SetWindowRect(ddraw->bnetWinRect.left, ddraw->bnetWinRect.top, width, height, flags);
+                    SetWindowRect(ddraw->overlayWinRect.left, ddraw->overlayWinRect.top, width, height, flags);
                 }
 
-                ddraw->fullscreen = ddraw->bnetWasUpscaled;
+                ddraw->fullscreen = ddraw->overlayWasUpscaled;
 
-                SetTimer(ddraw->hWnd, IDT_TIMER_LEAVE_BNET, 1000, (TIMERPROC)NULL);
+                SetTimer(ddraw->hWnd, IDT_TIMER_LEAVE_OVERLAY, 1000, (TIMERPROC)NULL);
 
                 ddraw->resizable = TRUE;
             }
@@ -468,32 +469,33 @@ HWND WINAPI fake_CreateWindowExA(
 {
     if (lpClassName && _strcmpi(lpClassName, "SDlgDialog") == 0 && ddraw)
     {
-        if (!ddraw->bnetActive)
+        if (!ddraw->overlayActive)
         {
-            ddraw->bnetWasUpscaled = ddraw->fullscreen;
+            ddraw->overlayWasUpscaled = ddraw->fullscreen;
             ddraw->fullscreen = FALSE;
 
-            if (!ddraw->windowed && !ddraw->bnetWasFullscreen)
+            if (!ddraw->windowed && !ddraw->overlayWasFullscreen)
             {
                 int ws = WindowState;
                 ToggleFullscreen();
                 WindowState = ws;
-                ddraw->bnetWasFullscreen = TRUE;
+                ddraw->overlayWasFullscreen = TRUE;
             }
 
-            real_GetClientRect(ddraw->hWnd, &ddraw->bnetWinRect);
-            MapWindowPoints(ddraw->hWnd, HWND_DESKTOP, (LPPOINT)&ddraw->bnetWinRect, 2);
+            real_GetClientRect(ddraw->hWnd, &ddraw->overlayWinRect);
+            MapWindowPoints(ddraw->hWnd, HWND_DESKTOP, (LPPOINT)&ddraw->overlayWinRect, 2);
 
-            int width = ddraw->bnetWinRect.right - ddraw->bnetWinRect.left;
-            int height = ddraw->bnetWinRect.bottom - ddraw->bnetWinRect.top;
-            int x = ddraw->bnetPos.x || ddraw->bnetPos.y ? ddraw->bnetPos.x : -32000;
-            int y = ddraw->bnetPos.x || ddraw->bnetPos.y ? ddraw->bnetPos.y : -32000;
+            int width = ddraw->overlayWinRect.right - ddraw->overlayWinRect.left;
+            int height = ddraw->overlayWinRect.bottom - ddraw->overlayWinRect.top;
+            int x = ddraw->overlayPos.x || ddraw->overlayPos.y ? ddraw->overlayPos.x : -32000;
+            int y = ddraw->overlayPos.x || ddraw->overlayPos.y ? ddraw->overlayPos.y : -32000;
             UINT flags = width != ddraw->width || height != ddraw->height ? 0 : SWP_NOMOVE;
 
             SetWindowRect(x, y, ddraw->width, ddraw->height, flags);
             ddraw->resizable = FALSE;
 
-            ddraw->bnetActive = TRUE;
+            ddraw->overlayActive = TRUE;
+            SetTimer(ddraw->hWnd, IDT_TIMER_OVERLAY_REDRAW, 50, (TIMERPROC)NULL);
             mouse_unlock();
         }
 

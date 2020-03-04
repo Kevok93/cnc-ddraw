@@ -97,10 +97,22 @@ DWORD WINAPI render_soft_main(void)
                 EnumChildWindows(ddraw->hWnd, EnumChildProc, (LPARAM)ddraw->primary);
             }
 
-            if (ddraw->bnetActive)
+            if (ddraw->overlayActive)
             {
-                RECT rc = { 0, 0, ddraw->render.width, ddraw->render.height };
-                FillRect(ddraw->render.hDC, &rc, (HBRUSH)GetStockObject(BLACK_BRUSH));
+                StretchDIBits(
+                    ddraw->render.hDC,
+                    ddraw->render.viewport.x,
+                    ddraw->render.viewport.y,
+                    ddraw->render.viewport.width,
+                    ddraw->render.viewport.height,
+                    0,
+                    0,
+                    ddraw->width,
+                    ddraw->height,
+                    ddraw->primary->overlaySurface,
+                    ddraw->primary->bmi,
+                    DIB_RGB_COLORS,
+                    SRCCOPY);
             }
             else if (scaleCutscene)
             {
