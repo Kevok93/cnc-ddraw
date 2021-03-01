@@ -110,7 +110,7 @@ int WINAPI fake_ShowCursor(BOOL bShow)
 {
     static int count;
 
-    if (g_ddraw && !g_ddraw->handlemouse)
+
         return real_ShowCursor(bShow);
 
     return bShow ? ++count : --count;
@@ -118,7 +118,6 @@ int WINAPI fake_ShowCursor(BOOL bShow)
 
 HCURSOR WINAPI fake_SetCursor(HCURSOR hCursor)
 {
-    if (g_ddraw && !g_ddraw->handlemouse)
         return real_SetCursor(hCursor); 
     
     return NULL;

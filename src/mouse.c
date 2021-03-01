@@ -13,8 +13,7 @@ void mouse_lock()
 
     if (g_ddraw->devmode)
     {
-        if (g_ddraw->handlemouse)
-            while(real_ShowCursor(FALSE) > 0);
+
 
         return;
     }
@@ -57,22 +56,14 @@ void mouse_lock()
             real_SetCursorPos(rc.left + g_ddraw->cursor.x, rc.top + g_ddraw->cursor.y - g_ddraw->mouse_y_adjust);
         }
 
-        if (g_ddraw->handlemouse)
+        if (g_ddraw->hidecursor)
         {
-            SetCapture(g_ddraw->hwnd);
-            real_ClipCursor(&rc);
-            while (real_ShowCursor(FALSE) > 0);
+            g_ddraw->hidecursor = FALSE;
+            real_ShowCursor(FALSE);
         }
-        else
-        {
-            if (g_ddraw->hidecursor)
-            {
-                g_ddraw->hidecursor = FALSE;
-                real_ShowCursor(FALSE);
-            }
 
-            real_ClipCursor(&rc);
-        }
+        real_ClipCursor(&rc);
+
 
         g_ddraw->locked = TRUE;
     }
@@ -84,8 +75,6 @@ void mouse_unlock()
 
     if (g_ddraw->devmode)
     {
-        if (g_ddraw->handlemouse)
-            while(real_ShowCursor(TRUE) < 0);
 
         return;
     }
@@ -111,19 +100,11 @@ void mouse_unlock()
 
         SetRect(&rc, pt.x, pt.y, pt2.x, pt2.y);
        
-        if (g_ddraw->handlemouse)
+        CURSORINFO ci = { .cbSize = sizeof(CURSORINFO) };
+        if (real_GetCursorInfo(&ci) && ci.flags == 0)
         {
+            g_ddraw->hidecursor = TRUE;
             while (real_ShowCursor(TRUE) < 0);
-            real_SetCursor(LoadCursor(NULL, IDC_ARROW));
-        }
-        else
-        {
-            CURSORINFO ci = { .cbSize = sizeof(CURSORINFO) };
-            if (real_GetCursorInfo(&ci) && ci.flags == 0)
-            {
-                g_ddraw->hidecursor = TRUE;
-                while (real_ShowCursor(TRUE) < 0);
-            }
         }
 
         real_ClipCursor(NULL);

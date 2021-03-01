@@ -617,7 +617,7 @@ HRESULT dd_SetDisplayMode(DWORD width, DWORD height, DWORD bpp)
 
         mouse_lock();
     }
-    
+
     if (g_ddraw->render.viewport.x != 0 || g_ddraw->render.viewport.y != 0)
     {
         RedrawWindow(g_ddraw->hwnd, NULL, NULL, RDW_ERASE | RDW_INVALIDATE);
@@ -682,8 +682,7 @@ HRESULT dd_SetCooperativeLevel(HWND hwnd, DWORD dwFlags)
 
         if (g_ddraw->handlemouse && g_ddraw->windowed)
         {
-            while (real_ShowCursor(FALSE) > 0); //workaround for direct input games
-            while (real_ShowCursor(TRUE) < 0);
+
         }
 
         real_SetCursor(LoadCursor(NULL, IDC_ARROW));

@@ -412,11 +412,6 @@ LRESULT CALLBACK fake_WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam
                 return 0;
             }
 
-            if (wParam == SC_CLOSE && !GameHandlesClose)
-            {
-                exit(0);
-            }
-
             if (wParam == SC_KEYMENU)
                 return 0;
 
