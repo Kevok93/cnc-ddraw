@@ -25,6 +25,12 @@ BOOL WINAPI fake_GetCursorPos(LPPOINT lpPoint)
         int max_width = g_ddraw->adjmouse ? g_ddraw->render.viewport.width : g_ddraw->width;
         int max_height = g_ddraw->adjmouse ? g_ddraw->render.viewport.height : g_ddraw->height;
 
+        if (g_ddraw->adjmouse)
+        {
+            pt.x -= g_ddraw->render.viewport.x;
+            pt.y -= g_ddraw->render.viewport.y;
+        }
+
         if (pt.x < 0)
         {
             diffx = pt.x;

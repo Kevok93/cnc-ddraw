@@ -25,8 +25,10 @@ void mouse_lock()
         
         if(g_ddraw->adjmouse)
         {
-            rc.right = g_ddraw->render.viewport.width;
-            rc.bottom = g_ddraw->render.viewport.height;
+            rc.top = g_ddraw->render.viewport.y;
+            rc.left = g_ddraw->render.viewport.x;
+            rc.right = g_ddraw->render.viewport.width + g_ddraw->render.viewport.x;
+            rc.bottom = g_ddraw->render.viewport.height + g_ddraw->render.viewport.y;
         }
         else
         {
