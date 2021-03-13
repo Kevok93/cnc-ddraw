@@ -1,4 +1,5 @@
 #include <windows.h>
+#include "debug.h"
 #include "dd.h"
 #include "hook.h"
 #include "config.h"
@@ -426,6 +427,20 @@ HWND WINAPI fake_CreateWindowExA(
         Y += pt.y;
 
         dwStyle |= WS_CLIPCHILDREN;
+
+        if (nWidth == 640 && nHeight >= 479)
+        {
+            lpWindowName = "Bnet Main";
+        }
+        else if (nWidth == 640 && nHeight >= 344)
+        {
+            if (FindWindowA(lpClassName, "Bnet Overlay 2"))
+                lpWindowName = "Bnet Overlay 3";
+            else if (FindWindowA(lpClassName, "Bnet Overlay 1"))
+                lpWindowName = "Bnet Overlay 2";
+            else
+                lpWindowName = "Bnet Overlay 1";
+        }
     }
 
     return real_CreateWindowExA(
