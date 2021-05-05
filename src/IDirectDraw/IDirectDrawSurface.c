@@ -104,6 +104,7 @@ ULONG __stdcall IDirectDrawSurface__Release(IDirectDrawSurfaceImpl *This)
 HRESULT __stdcall IDirectDrawSurface__AddAttachedSurface(IDirectDrawSurfaceImpl *This, LPDIRECTDRAWSURFACE lpDDSurface)
 {
     dprintf("-> %s(This=%p, lpDDSurface=%p)\n", __FUNCTION__, This, lpDDSurface);
+    ((IDirectDrawSurfaceImpl*) lpDDSurface)->surface = This->surface;
     HRESULT ret = dds_AddAttachedSurface(This, lpDDSurface);
     dprintf("<- %s\n", __FUNCTION__);
     return ret;
